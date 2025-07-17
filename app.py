@@ -9,17 +9,13 @@ from sumy.summarizers.lsa import LsaSummarizer
 from textblob import TextBlob
 import nltk
 
-# Ensure required tokenizer is downloaded
 nltk.download("punkt")
 
-# Load country ISO codes
 with open("countries_dict.json", "r") as f:
     country_codes = json.load(f)
 
-# Load API key securely from secrets.toml
 NEWS_API_KEY = st.secrets["NEWS_API_KEY"]
 
-# Utility functions
 def clean_text(text):
     return re.sub(r"\[\+\d+\schars\]", "", text).strip()
 
@@ -50,12 +46,10 @@ def get_sentiments(text):
     except:
         return "Unknown"
 
-# Streamlit UI
 st.set_page_config(page_title="Smart News Digest", layout="wide")
 st.title("📰 Smart News Digest")
 st.markdown("Get summarized and sentiment-analyzed news by country, category, or keyword.")
 
-# Sidebar filters
 with st.sidebar:
     st.header("🔍 Filter Options")
     query = st.text_input("Search News")
@@ -63,7 +57,6 @@ with st.sidebar:
     country = st.selectbox("Select Country", list(country_codes.keys()), index=list(country_codes.keys()).index("India"))
     action = st.radio("Action", ["Top Headlines", "Search", "Filter by Category"])
 
-# Fetch news
 country_code = country_codes.get(country, "IN")
 articles = []
 search_title = ""
@@ -82,7 +75,6 @@ response = requests.get(url)
 data = response.json()
 raw_articles = data.get("articles", [])
 
-# Fallback for empty category
 if action == "Filter by Category" and not raw_articles:
     fallback_url = f"https://newsapi.org/v2/everything?q={category}+{country}&language=en&sortBy=publishedAt&apiKey={NEWS_API_KEY}"
     response = requests.get(fallback_url)
@@ -91,7 +83,6 @@ if action == "Filter by Category" and not raw_articles:
 
 raw_articles = raw_articles[:10]
 
-# Display articles
 st.subheader(search_title)
 if not raw_articles:
     st.warning("No articles found.")
@@ -116,4 +107,3 @@ else:
             st.markdown(f"**📝 Summary:** {summary}")
             st.markdown(f"**📈 Sentiment:** {sentiment}")
             st.markdown(f"[🔗 Read Full Article]({item.get('url', '#')})")
-
