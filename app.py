@@ -87,23 +87,35 @@ st.subheader(search_title)
 if not raw_articles:
     st.warning("No articles found.")
 else:
-    for item in raw_articles:
-        raw_text = item.get("description") or item.get("content") or ""
-        content = clean_text(raw_text)
+   for item in raw_articles:
+    title = item.get("title", "")
+    description = item.get("description", "")
+    content = item.get("content", "")
+
+    # Fallback logic: Combine title + description + content
+    raw_text = f"{title}. {description} {content}".strip()
+    content = clean_text(raw_text)
+
+    # Skip if text is too short for summarization
+    if len(content.split()) < 30:
+        summary = "Summary not available (content too short)."
+    else:
         summary = summarize_text(content)
-        sentiment = get_sentiments(content)
 
-        source = item.get("source", {}).get("name", "Unknown Source")
-        published = item.get("publishedAt", "")
-        try:
-            published_dt = datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ")
-            published = published_dt.strftime("%d-%m-%Y %I:%M %p")
-        except:
-            published = "Unknown Time"
+    sentiment = get_sentiments(content)
 
-        with st.expander(item.get("title", "No Title")):
-            st.markdown(f"**🗞️ Source:** {source}  **🕒 Published:** {published}")
-            st.markdown(f"**📌 Description:** {item.get('description', 'No description')}")
-            st.markdown(f"**📝 Summary:** {summary}")
-            st.markdown(f"**📈 Sentiment:** {sentiment}")
-            st.markdown(f"[🔗 Read Full Article]({item.get('url', '#')})")
+    source = item.get("source", {}).get("name", "Unknown Source")
+    published = item.get("publishedAt", "")
+    try:
+        published_dt = datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ")
+        published = published_dt.strftime("%d-%m-%Y %I:%M %p")
+    except:
+        published = "Unknown Time"
+
+    with st.expander(title or "No Title"):
+        st.markdown(f"**🗞️ Source:** {source}  **🕒 Published:** {published}")
+        st.markdown(f"**📌 Description:** {description or 'No description'}")
+        st.markdown(f"**📝 Summary:** {summary}")
+        st.markdown(f"**📈 Sentiment:** {sentiment}")
+        st.markdown(f"[🔗 Read Full Article]({item.get('url', '#')})")
+
