@@ -3,7 +3,9 @@ import requests
 import json
 import re
 from datetime import datetime
-from gensim.summarization import summarize
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
 from textblob import TextBlob
 
 with open("countries_dict.json", "r") as f:
@@ -19,8 +21,10 @@ def summarize_text(text, sentence_count=2):
         text = clean_text(text)
         if len(text.split()) < 30:
             return "Summary not available (content too short)."
-        summary_text = summarize(text, word_count=200)
-        return summary_text if summary_text else "Summary not available"
+        parser = PlaintextParser.from_string(text, Tokenizer("english"))
+        summarizer = LsaSummarizer()
+        summary = summarizer(parser.document, sentence_count)
+        return " ".join(str(sentence) for sentence in summary) or "Summary not available"
     except Exception as e:
         print("Summary error:", e)
         return "Summary not available"
