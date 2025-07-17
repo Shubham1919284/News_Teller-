@@ -2,3 +2,4 @@ streamlit
 requests
 textblob
 sumy
+nltk
