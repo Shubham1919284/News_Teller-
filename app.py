@@ -22,6 +22,8 @@ def clean_text(text):
 def summarize_text(text, sentence_count=2):
     try:
         text = clean_text(text)
+        if len(text.split()) < 30:
+            return "Summary not available (content too short)."
         parser = PlaintextParser.from_string(text, Tokenizer("english"))
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
@@ -29,7 +31,7 @@ def summarize_text(text, sentence_count=2):
         words = summary_text.split()
         if len(words) > 200:
             summary_text = " ".join(words[:200]) + "..."
-        return summary_text
+        return summary_text if summary_text else "Summary not available"
     except Exception as e:
         print("Summary error:", e)
         return "Summary not available"
@@ -87,35 +89,28 @@ st.subheader(search_title)
 if not raw_articles:
     st.warning("No articles found.")
 else:
-   for item in raw_articles:
-    title = item.get("title", "")
-    description = item.get("description", "")
-    content = item.get("content", "")
+    for item in raw_articles:
+        title = item.get("title", "")
+        description = item.get("description", "")
+        content_raw = item.get("content", "")
 
-    # Fallback logic: Combine title + description + content
-    raw_text = f"{title}. {description} {content}".strip()
-    content = clean_text(raw_text)
+        combined_text = f"{title}. {description} {content_raw}".strip()
+        content = clean_text(combined_text)
 
-    # Skip if text is too short for summarization
-    if len(content.split()) < 30:
-        summary = "Summary not available (content too short)."
-    else:
         summary = summarize_text(content)
+        sentiment = get_sentiments(content)
 
-    sentiment = get_sentiments(content)
+        source = item.get("source", {}).get("name", "Unknown Source")
+        published = item.get("publishedAt", "")
+        try:
+            published_dt = datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ")
+            published = published_dt.strftime("%d-%m-%Y %I:%M %p")
+        except:
+            published = "Unknown Time"
 
-    source = item.get("source", {}).get("name", "Unknown Source")
-    published = item.get("publishedAt", "")
-    try:
-        published_dt = datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ")
-        published = published_dt.strftime("%d-%m-%Y %I:%M %p")
-    except:
-        published = "Unknown Time"
-
-    with st.expander(title or "No Title"):
-        st.markdown(f"**🗞️ Source:** {source}  **🕒 Published:** {published}")
-        st.markdown(f"**📌 Description:** {description or 'No description'}")
-        st.markdown(f"**📝 Summary:** {summary}")
-        st.markdown(f"**📈 Sentiment:** {sentiment}")
-        st.markdown(f"[🔗 Read Full Article]({item.get('url', '#')})")
-
+        with st.expander(title or "No Title"):
+            st.markdown(f"**🗞️ Source:** {source}  **🕒 Published:** {published}")
+            st.markdown(f"**📌 Description:** {description or 'No description'}")
+            st.markdown(f"**📝 Summary:** {summary}")
+            st.markdown(f"**📈 Sentiment:** {sentiment}")
+            st.markdown(f"[🔗 Read Full Article]({item.get('url', '#')})")
