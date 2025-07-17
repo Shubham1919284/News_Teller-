@@ -10,24 +10,25 @@ from textblob import TextBlob
 import nltk
 import os
 
-# Ensure punkt is available (for both local and deployed environments)
+# ✅ Use local nltk_data folder
+nltk.data.path.append("./nltk_data")
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
-    nltk.download("punkt")
+    st.error("❌ 'punkt' tokenizer not found. Please include the 'nltk_data' folder with 'punkt' in your project.")
 
 # Load country codes
 with open("countries_dict.json", "r") as f:
     country_codes = json.load(f)
 
-# Load News API key securely from secrets
+# API key from secrets
 NEWS_API_KEY = st.secrets["NEWS_API_KEY"]
 
-# Text cleaner
+# Clean article content
 def clean_text(text):
     return re.sub(r"\[\+\d+\schars\]", "", text).strip()
 
-# Summarizer function using LSA from sumy
+# Text summarizer
 def summarize_text(text, sentence_count=2):
     try:
         text = clean_text(text)
@@ -58,12 +59,12 @@ def get_sentiments(text):
     except:
         return "⚪ Unknown"
 
-# Streamlit App Config
+# Streamlit setup
 st.set_page_config(page_title="Smart News Digest", layout="wide")
 st.title("📰 Smart News Digest")
 st.markdown("Get summarized and sentiment-analyzed news by country, category, or keyword.")
 
-# Sidebar filters
+# Sidebar
 with st.sidebar:
     st.header("🔍 Filter Options")
     query = st.text_input("Search News")
@@ -71,7 +72,7 @@ with st.sidebar:
     country = st.selectbox("Select Country", list(country_codes.keys()), index=list(country_codes.keys()).index("India"))
     action = st.radio("Action", ["Top Headlines", "Search", "Filter by Category"])
 
-# Construct API URL based on user action
+# Build API URL
 country_code = country_codes.get(country, "IN")
 articles = []
 search_title = ""
@@ -86,19 +87,19 @@ else:
     search_title = f"Top Headlines in {country}"
     url = f"https://newsapi.org/v2/top-headlines?country={country_code}&language=en&apiKey={NEWS_API_KEY}"
 
-# API call
+# Fetch articles
 response = requests.get(url)
 data = response.json()
 raw_articles = data.get("articles", [])
 
-# Fallback to 'everything' if no results for category
+# Fallback for category if no results
 if action == "Filter by Category" and not raw_articles:
     fallback_url = f"https://newsapi.org/v2/everything?q={category}+{country}&language=en&sortBy=publishedAt&apiKey={NEWS_API_KEY}"
     response = requests.get(fallback_url)
     data = response.json()
     raw_articles = data.get("articles", [])
 
-raw_articles = raw_articles[:10]  # limit results
+raw_articles = raw_articles[:10]  # show only top 10
 
 # Display articles
 st.subheader(search_title)
