@@ -1,5 +1,4 @@
 streamlit
 requests
+gensim
 textblob
-sumy
-nltk
