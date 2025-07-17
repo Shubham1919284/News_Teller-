@@ -3,50 +3,55 @@ import requests
 import json
 import re
 from datetime import datetime
+from textblob import TextBlob
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer
-from textblob import TextBlob
+from sumy.summarizers.text_rank import TextRankSummarizer
 import nltk
-import os
 
-# ✅ Use local nltk_data folder
-nltk.data.path.append("./nltk_data")
+# ✅ Use local nltk_data for deployment safety
+nltk.data.path.append("nltk_data")
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
-    st.error("❌ 'punkt' tokenizer not found. Please include the 'nltk_data' folder with 'punkt' in your project.")
+    nltk.download("punkt", download_dir="nltk_data")
 
-# Load country codes
+# Load country dictionary
 with open("countries_dict.json", "r") as f:
     country_codes = json.load(f)
 
-# API key from secrets
+# Load API key from Streamlit secrets
 NEWS_API_KEY = st.secrets["NEWS_API_KEY"]
 
-# Clean article content
+# Clean content
 def clean_text(text):
     return re.sub(r"\[\+\d+\schars\]", "", text).strip()
 
-# Text summarizer
+# Summary using TextRank (reliable and avoids tokenizer errors)
 def summarize_text(text, sentence_count=2):
     try:
         text = clean_text(text)
         if len(text.split()) < 30:
             return "Summary not available (content too short)."
+
         parser = PlaintextParser.from_string(text, Tokenizer("english"))
-        summarizer = LsaSummarizer()
+        summarizer = TextRankSummarizer()
         summary = summarizer(parser.document, sentence_count)
+
         summary_text = " ".join(str(sentence) for sentence in summary)
+        if not summary_text:
+            return "Summary not available"
+
         words = summary_text.split()
         if len(words) > 200:
             summary_text = " ".join(words[:200]) + "..."
-        return summary_text if summary_text else "Summary not available"
+
+        return summary_text
     except Exception as e:
         st.error(f"❌ Summary error: {e}")
         return "Summary not available"
 
-# Sentiment analyzer
+# Sentiment analysis
 def get_sentiments(text):
     try:
         polarity = TextBlob(text).sentiment.polarity
@@ -59,12 +64,11 @@ def get_sentiments(text):
     except:
         return "⚪ Unknown"
 
-# Streamlit setup
+# Streamlit UI
 st.set_page_config(page_title="Smart News Digest", layout="wide")
 st.title("📰 Smart News Digest")
 st.markdown("Get summarized and sentiment-analyzed news by country, category, or keyword.")
 
-# Sidebar
 with st.sidebar:
     st.header("🔍 Filter Options")
     query = st.text_input("Search News")
@@ -72,9 +76,7 @@ with st.sidebar:
     country = st.selectbox("Select Country", list(country_codes.keys()), index=list(country_codes.keys()).index("India"))
     action = st.radio("Action", ["Top Headlines", "Search", "Filter by Category"])
 
-# Build API URL
 country_code = country_codes.get(country, "IN")
-articles = []
 search_title = ""
 
 if action == "Search" and query:
@@ -87,21 +89,19 @@ else:
     search_title = f"Top Headlines in {country}"
     url = f"https://newsapi.org/v2/top-headlines?country={country_code}&language=en&apiKey={NEWS_API_KEY}"
 
-# Fetch articles
 response = requests.get(url)
 data = response.json()
 raw_articles = data.get("articles", [])
 
-# Fallback for category if no results
+# fallback if no top-headlines found
 if action == "Filter by Category" and not raw_articles:
     fallback_url = f"https://newsapi.org/v2/everything?q={category}+{country}&language=en&sortBy=publishedAt&apiKey={NEWS_API_KEY}"
     response = requests.get(fallback_url)
     data = response.json()
     raw_articles = data.get("articles", [])
 
-raw_articles = raw_articles[:10]  # show only top 10
+raw_articles = raw_articles[:10]
 
-# Display articles
 st.subheader(search_title)
 if not raw_articles:
     st.warning("No articles found.")
